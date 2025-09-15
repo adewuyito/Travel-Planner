@@ -10,72 +10,84 @@ import FirebaseAI
 import Foundation
 
 class AgentService {
-	
-	static var shared = AgentService()
-	
-	let model: GenerativeModel
-	
-	private init() {
-		let aI: FirebaseAI = FirebaseAI.firebaseAI(backend: .googleAI())
-		
-		let config = GenerationConfig(
-				  temperature: 0.7,
-				  topP: 0.8,
-				  topK: 40,
-				  maxOutputTokens: 1024
-			  )
-		
-		self.model = aI
-			.generativeModel(modelName: "gemini-2.5-flash", generationConfig: config)
-	}
+
+    static var shared = AgentService()
+
+    let model: GenerativeModel
+
+    private init() {
+        let aI: FirebaseAI = FirebaseAI.firebaseAI(
+            backend: .googleAI()
+        )
+
+        let config = GenerationConfig(
+            responseMIMEType: "application/json",
+            responseSchema: reducesDescriptionJsonSchema
+        )
+
+        self.model =
+            aI
+            .generativeModel(
+                modelName: "gemini-2.5-flash",
+                generationConfig: config,
+                systemInstruction: .init(role: "system", parts: systemPrompt)
+            )
+    }
 }
 
 @MainActor
 class AiItineryService: ObservableObject {
-	@Published var aIRespoonce: String = ""
-	@Published var error: String?
-	@Published var isLoading: Bool = false
-	
-	
-	let aiAgent = AgentService.shared
-	
-	init() {
-	}
-	
-	func generateItinery(userPrompt: String) async {
-		do {
-			let responce = try aiAgent.model.generateContentStream(userPrompt)
-			
-			for try await chunk in responce {
-			  if let text = chunk.text {
-				  aIRespoonce += text
-			  }
-			}
-		} catch {
-			print(error.localizedDescription)
-		}
-		
-	}
-	
-	
-	
-	
-	var basePrompt: String {
-		return ""
-	}
-	
-	var systemPrompt: String = "You are a travel planner. Generate a structured itinerary in JSON matching this schema: (jsonEncode(specASchema)). Use the search_web function for real-time info (e.g., restaurants, attractions). For follow-up requests, refine the previous itinerary based on user input. Respond only with valid JSON matching the schema."
-}
+    @Published var aIResponse: String = ""
+    @Published var error: String?
+    @Published var isLoading: Bool = false
 
+    let aiAgent = AgentService.shared
 
-struct ChatMessage {
-	let text: String
-	let isUser: Bool
-	let timestamp: Date
-	
-	init(text: String, isUser: Bool) {
-		self.text = text
-		self.isUser = isUser
-		self.timestamp = Date()
-	}
+    init() {
+    }
+
+    func generateItinery(userPrompt: String) async throws -> Itinery {
+        isLoading = true
+        error = nil
+
+        defer {
+            isLoading = false
+        }
+
+        do {
+            let response = try await Task.detached {  // Make the API call off the main actor to avoid blocking UI
+                try await self.aiAgent.model.generateContent(userPrompt)
+            }.value
+
+            if let text = response.text {  // Update response on main actor
+                aIResponse = text
+            }
+
+            guard let text = response.text,
+                let data = text.data(using: .utf8)
+            else {
+                let errorMessage = "Invalid response from AI service"
+                error = errorMessage
+                throw NSError(
+                    domain: "GeminiError",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: errorMessage]
+                )
+            }
+
+            let itinerary = try JSONDecoder().decode(Itinery.self, from: data)
+
+            return itinerary
+
+        } catch {
+            let errorMessage = error.localizedDescription  // Handle errors and update error state
+            self.error = errorMessage
+            throw error
+        }
+    }
+
+    var basePrompt: String {
+        return ""
+    }
+
 }
