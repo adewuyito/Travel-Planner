@@ -13,9 +13,11 @@ struct HomeView: View {
 
     @State var inputText = ""
 
-    @Query var itinery: [Itinery]
+    //    @Query var itinery: [Itinery]
 
-    @Environment(\.modelContext) private var modelContext
+    var itinery: [Itinery] = [Itinery]()
+
+    //    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         if aiAgent.isLoading {
@@ -68,24 +70,16 @@ struct HomeView: View {
                             label: "Create my Itinerary",
                             action: {
 
-                                Task {
-                                    do {
-										let response: Itinery = try await aiAgent.generateItinery(
-                                            userPrompt: inputText
-                                        )
-										
-										print(
-											"""
-Response from AI:
-Title: \(response.title)
-StartDate: \(response.beginDate)
-"""
-										)
-                                    } catch {
-										print("Error: \(error.localizedDescription)")
-                                    }
-
-                                }
+                                //                                Task {
+                                //                                    do {
+                                //                                        let response: Itinery = try await aiAgent.generateItinery(
+                                //                                            userPrompt: inputText
+                                //                                        )
+                                //                                    } catch {
+                                //                                        print("Error: \(error.localizedDescription)")
+                                //                                    }
+                                //
+                                //                                }
                             }
                         )
                         .disabled(aiAgent.isLoading)
@@ -131,7 +125,6 @@ StartDate: \(response.beginDate)
                     }
                 }
             }
-
         }
     }
 
@@ -147,6 +140,6 @@ StartDate: \(response.beginDate)
     }
 }
 
-//#Preview {
-//    HomeView()
-//}
+#Preview {
+    HomeView()
+}

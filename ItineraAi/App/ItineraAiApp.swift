@@ -27,6 +27,7 @@ struct ItineraAiApp: App {
         WindowGroup {
             ContentView()
         }
+		.modelContainer(for: ItineryChat.self)
 		.modelContainer(for: Itinery.self)
     }
 }

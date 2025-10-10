@@ -143,6 +143,5 @@ class ActivityItem: Codable, Identifiable {
 		self.activity = try container.decode(String.self, forKey: .activity)
 		self.location = try container.decode(String.self, forKey: .location)
 	}
-	
 	func encode(to encoder: Encoder) throws {}
 }
